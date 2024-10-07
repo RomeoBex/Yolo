@@ -7,210 +7,168 @@
 \usepackage{hyperref}
 \usepackage{minted}  
 \usepackage{titlesec}
+\usepackage{svg}
 
-\setcounter{section}{-1}
 
-\title{TP : Support Vector Machine}
-\author{BEX Roméo}
+\title{You Only Look Once (Yolo)}
+\author{BEX Roméo, RIVALDI Tristan, LAMURE Maxence}
 \date{24 Septembre 2024}
 
 \begin{document}
 
 \maketitle
 
-\tableofcontents
-
 \begin{figure}[H]
 \centering
 \includesvg[width=0.2\textwidth]{logo_um}
 \end{figure}
 
+
+
+
+\tableofcontents
+
+
+\newpage
+
 \section*{Introduction}
-\addcontentsline{toc}{section}{Introduction}
+
+La détection d'objets est une tâche cruciale en vision par ordinateur, utilisée dans des domaines comme la conduite autonome, la surveillance et les systèmes de sécurité. Elle nécessite non seulement la localisation des objets dans une image, mais aussi leur classification, tout en garantissant un temps de traitement rapide pour les applications en temps réel.
+
+L'approche YOLO (You Only Look Once) révolutionne la détection d'objets en traitant cette tâche comme un problème de régression unique, passant directement de l'image complète aux prédictions des boîtes englobantes et des classes d'objets. Cette méthode permet d'atteindre des vitesses élevées, jusqu'à 45 images par seconde, ce qui est idéal pour les systèmes en temps réel. Cependant, YOLO présente certaines limites, notamment dans la précision de la détection des petits objets.
+
+Ce rapport explore l'architecture de YOLO, ses fondements mathématiques, ses performances par rapport aux autres méthodes de détection, ainsi que ses avantages, inconvénients, et applications concrètes.
+
+\section{Système de détection Yolo}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{illustration-yolo.png}
+    \caption{Système de détection Yolo}
+    \label{fig:enter-label}
+\end{figure}
+
+Comme on peut voir ci-dessus, la reconnaissance d'image est divisée en 3 parties qui sont :    
+- La première étape consiste à faire un \textbf{redimensionnement} de l'image d'entrée à une taille fixe de 448 × 448 pixels. Cela permet d'uniformiser la taille des images, peu importe leurs dimensions d'origine, ce qui facilite le traitement par le réseau de neurones.
+
+- Ensuite, l'image redimensionnée est passée dans un \textbf{réseau de neurones convolutionnel (CNN)}. Le CNN traite l'image pour extraire des caractéristiques et prédire plusieurs boîtes englobantes (bounding boxes) et les classes d'objets correspondantes. Le réseau prédit simultanément plusieurs objets dans l'image.
+
+- Après que le modèle a généré les prédictions, la dernière étape est \textbf{la suppression non-maximale}. Cette méthode élimine les boîtes englobantes qui se chevauchent et qui représentent le même objet, en ne gardant que la boîte avec le score de confiance le plus élevé. Cela permet d'éviter les multiples détections d'un même objet.
 
 
-Dans ce rapport, nous présentons une étude sur l'application des \textbf{SVM} (Machines à Vecteurs de Support) pour la classification de données. Nous abordons plusieurs aspects, tels que l'impact des noyaux linéaires et polynomiaux, l'ajout de variables de nuisance, et la réduction de dimension avec PCA.
+\section{Fonctionnement du réseau de neurone}
 
-Mathématiquement, le modèle SVM optimise la fonction suivante : 
+Le réseau de neurones YOLO est une architecture de réseau convolutionnel profond (CNN) qui convertit une image en entrée en une série de prédictions de boîtes englobantes et de classes d'objets. Contrairement aux approches traditionnelles, YOLO traite la détection d'objets comme un \textbf{problème de régression} global et non comme un ensemble de sous-tâches indépendantes (comme la génération de régions et la classification).
+
+\subsection{Prétraitement de l'image d'entrée}
+La première étape du fonctionnement de YOLO est le \textbf{redimensionnement de l'image d'entrée} à une taille fixe de \(448 \times 448\) pixels. Cette étape permet de standardiser la taille des images avant de les passer dans le réseau.
+
+\subsection{Extraction des caractéristiques avec les couches convolutionnelles}
+
+Les \textbf{couches convolutionnelles} sont responsables de l'extraction des \textbf{caractéristiques} importantes de l'image d'entrée. Les caractéristiques extraites sont utilisées pour détecter des objets à différentes échelles dans l'image.
+
+\subsubsection{Convolution}
+Chaque couche convolutionnelle applique un ensemble de \textbf{filtres} à l'image d'entrée pour extraire des caractéristiques locales. Mathématiquement, une convolution est l'opération suivante :
 \[
-\underset{\mathbf{w},b}{\text{argmin}} \left( \frac{1}{2} \|\mathbf{w}\|^2 \right) + C \sum_{i=1}^{n} \max(0, 1 - y_i(\mathbf{w} \cdot \mathbf{x}_i + b))
+h_{ij}^{(k)} = (W^{(k)} * x)_{ij} = \sum_m \sum_n W_{mn}^{(k)} x_{(i+m)(j+n)}
 \]
-Le paramètre \textbf{C} contrôle le compromis entre la maximisation de la marge et la réduction des erreurs de classification sur les données d'entraînement.
-
-Les algorithmes sont testés sur des jeux de données tels que \textbf{Iris} et \textbf{Labeled Faces in the Wild (LFW)}.
-
-\section*{Question 1}
-\addcontentsline{toc}{section}{Question 1}
-
-Nous appliquons un SVM à noyau linéaire sur l'ensemble de données Iris avec une recherche par grille pour optimiser le paramètre de régularisation \textit{C}.
-
-\begin{minted}[bgcolor=lightgray, fontsize=\footnotesize]{python}
-# Définir les paramètres pour la recherche de grille
-parameters = {'kernel': ['linear'], 'C': list(np.logspace(-3, 3, 200))}
-
-# Utiliser GridSearchCV pour optimiser le modèle SVM avec noyau linéaire
-clf_linear = GridSearchCV(SVC(), parameters, n_jobs=1)
-clf_linear.fit(X_train, y_train)
-
-# Calculer les scores de généralisation et les afficher
-train_score = clf_linear.score(X_train, y_train)
-test_score = clf_linear.score(X_test, y_test)
-print(f'Generalization score for linear kernel: {train_score}, {test_score}')
-\end{minted}
-
-\textbf{Résultats :}
-
+Où :
 \begin{itemize}
-    \item Précision sur l'ensemble de test : 0.62
-    \item Précision sur l'ensemble d'entraînement : 0.72
+    \item \( h_{ij}^{(k)} \) est la valeur du pixel \( (i, j) \) dans la \textbf{carte de caractéristiques} résultante de la convolution avec le filtre \( k \),
+    \item \( W^{(k)} \) est le \textbf{noyau} (ou filtre) de convolution \( k \),
+    \item \( x \) est l'image d'entrée ou la sortie de la couche précédente,
+    \item L’opérateur \( * \) représente la convolution.
 \end{itemize}
 
-\section*{Question 2}
-\addcontentsline{toc}{section}{Question 2}
+Cette opération permet au réseau d'apprendre des motifs et des structures (comme des bords ou des coins) présents dans l'image à différentes échelles et positions.
 
-Nous appliquons cette fois un SVM à noyau polynomial.
+\subsubsection{Activation ReLU}
+Après chaque convolution, une fonction d'activation non linéaire est appliquée, en général la fonction \textbf{ReLU (Rectified Linear Unit)} :
+\[
+\text{ReLU}(z) = \max(0, z)
+\]
+Cette activation permet de rendre le modèle non linéaire, ce qui est essentiel pour capturer des relations complexes entre les pixels d'entrée.
 
-\begin{minted}[bgcolor=lightgray, fontsize=\footnotesize]{python}
-# Définir les paramètres pour le noyau polynomial
-Cs = list(np.logspace(-3, 3, 5))
-gammas = 10. ** np.arange(1, 2)
-degrees = np.r_[1, 2, 3]
+\subsection{Prédiction des boîtes englobantes et des classes avec les couches entièrement connectées}
 
-parameters = {'kernel': ['poly'], 'C': Cs, 'gamma': gammas, 'degree': degrees}
+Après plusieurs couches convolutionnelles, YOLO utilise des \textbf{couches entièrement connectées} pour transformer les cartes de caractéristiques extraites en \textbf{prédictions concrètes} de boîtes englobantes et de classes. 
 
-# Utiliser GridSearchCV pour optimiser le modèle SVM avec noyau polynomial
-clf_poly = GridSearchCV(SVC(), parameters, cv=5)
-clf_poly.fit(X_train, y_train)
+L'image est divisée en une grille de taille \( S \times S \), généralement \( S = 7 \). Chaque cellule de la grille est responsable de prédire un certain nombre de \textbf{boîtes englobantes} (bounding boxes) et les \textbf{classes d'objets} pour les objets dont le centre se trouve dans la cellule.
 
-# Afficher les meilleurs paramètres
-print(clf_poly.best_params_)
-\end{minted}
-
-\textbf{Résultats :}
-
+\subsubsection{Prédiction des coordonnées des boîtes englobantes}
+Pour chaque cellule de la grille, le réseau prédit les coordonnées \(x\), \(y\), \(w\) et \(h\) des boîtes englobantes :
 \begin{itemize}
-    \item \textit{C} : 0.031
-    \item Degré (polynôme) : 1
-    \item Gamma : 10.0
+    \item \( x \) et \( y \) représentent les \textbf{coordonnées du centre} de la boîte, relatives à la cellule (donc comprises entre 0 et 1).
+    \item \( w \) et \( h \) représentent la \textbf{largeur} et la \textbf{hauteur} de la boîte, relatives à la taille totale de l'image.
 \end{itemize}
 
-Scores de généralisation :
+Ces prédictions sont normalisées afin que :
+\[
+0 \leq x, y \leq 1, \quad 0 \leq w, h \leq 1
+\]
+Les coordonnées sont obtenues à partir des \textbf{cartes de caractéristiques} générées par les couches convolutionnelles. Elles sont multipliées par des poids et additionnées à des biais appris durant l'entraînement.
+
+\subsubsection{Prédiction des scores de confiance}
+Chaque boîte englobante est associée à un \textbf{score de confiance} \(C\) :
+\[
+C = \text{Pr(Object)} \times \text{IoU}_{\text{pred, truth}}
+\]
+Où :
 \begin{itemize}
-    \item Données d'entraînement : 0.71
-    \item Données tests : 0.68
+    \item \( \text{Pr(Object)} \) est la probabilité qu'un objet soit présent dans cette boîte,
+    \item \( \text{IoU}_{\text{pred, truth}} \) (Intersection over Union) est une mesure de la qualité de l'ajustement entre la boîte prédite et la boîte réelle. Il permet d'évaluer la similarité entre deux ensembles que sont les Bounding Boxes
 \end{itemize}
 
+\subsubsection{Prédiction des classes d'objets}
+Pour chaque boîte prédite, le réseau prédit une distribution de probabilités sur les \textbf{classes d'objets} possibles. Ces probabilités sont obtenues à l'aide d'une fonction \textbf{softmax} :
+\[
+p_i(c) = \frac{e^{z_c}}{\sum_{c' \in C} e^{z_{c'}}}
+\]
+Où :
+\begin{itemize}
+    \item \( z_c \) est le score brut (logits) de la classe \(c\),
+    \item \( p_i(c) \) est la probabilité que la boîte \(i\) contienne un objet de la classe \(c\).
+\end{itemize}
+
+\subsection{Fonction de perte de YOLO}
+
+Le réseau YOLO est entraîné pour minimiser une \textbf{fonction de perte} qui combine trois composantes :
+\begin{enumerate}
+    \item \textbf{Perte de localisation} : Mesure la différence entre les coordonnées des boîtes prédite et les boîtes réelles (ground truth).
+    \[
+    \text{Loss}_{\text{loc}} = \lambda_{\text{coord}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} \mathbf{1}_{\text{obj}}^{ij} \left[ (x_i - \hat{x}_i)^2 + (y_i - \hat{y}_i)^2 + \left( \sqrt{w_i} - \sqrt{\hat{w}_i} \right)^2 + \left( \sqrt{h_i} - \sqrt{\hat{h}_i} \right)^2 \right]
+    \]
+    
+    \item \textbf{Perte de confiance} : Compare les scores de confiance prédits et réels.
+    \[
+    \text{Loss}_{\text{conf}} = \sum_{i=0}^{S^2} \sum_{j=0}^{B} \mathbf{1}_{\text{obj}}^{ij} (C_i - \hat{C}_i)^2 + \lambda_{\text{noobj}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} \mathbf{1}_{\text{noobj}}^{ij} (C_i - \hat{C}_i)^2
+    \]
+    
+    \item \textbf{Perte de classification} : Évalue la différence entre les classes prédite et les vraies classes d'objets.
+    \[
+    \text{Loss}_{\text{class}} = \sum_{i=0}^{S^2} \mathbf{1}_{\text{obj}}^{i} \sum_{c \in \text{classes}} (p_i(c) - \hat{p}_i(c))^2
+    \]
+\end{enumerate}
+
+\subsection{Optimisation du réseau}
+Pendant l'entraînement, les \textbf{poids} du réseau de neurones sont ajustés pour \textbf{minimiser la fonction de perte} à l'aide d'un algorithme d'optimisation, tel que la \textbf{descente de gradient stochastique} (SGD) ou \textbf{Adam}. 
+
+\section{Résultats, forces et faiblesses}
 
 \begin{figure}[H]
-\centering
-\includesvg[width=1.1\textwidth]{bg}
-\caption{Frontière de décision des noyaux linéaire et polynomial}
+    \centering
+    \includegraphics[width=0.8\linewidth]{yolo-recall-precision.png}
+    \caption{Enter Caption}
+    \label{fig:enter-label}
 \end{figure}
 
-Après avoir exécuté plusieurs fois le code, on constate que la précision reste sensiblement la même pour chaque méthode. Ajouter de la complexité au modèle ne semble pas toujours améliorer les résultats.
 
-\section*{Question 3 (bonus)}
-\addcontentsline{toc}{section}{Question 3 (bonus)}
+En abscisse on peut voir le Racall qui mesure la capacité du modèle à détecter tous les objets pertinents dans une image. Il s'agit du pourcentage des objets réellement présents qui ont été correctement détectés par le modèle. 
+En ordonnée la précision qui mesure la proportion de prédictions faites par le modèle qui sont correctes. 
+Ansi YOLO se place en premières places au vu de ces différents algorithmes.
 
-En utilisant le script \texttt{svm\_gui.py} et en faisant varier le paramètre \textit{C}, on obtient les graphiques suivants :
+\section{Conclusion}
 
-\begin{figure}[H]
-\centering
-\begin{minipage}[b]{0.9\textwidth}
-    \includesvg[width=\textwidth]{unite}
-    \caption{Frontière de décision avec $C=1$}
-\end{minipage}
-\hfill
-\begin{minipage}[b]{0.9\textwidth}
-    \includesvg[width=\textwidth]{milieme}
-    \caption{Frontière de décision avec $C=0.001$}
-\end{minipage}
-\end{figure}
-
-Le paramètre \textit{C} contrôle le compromis entre une marge large et la minimisation des erreurs de classification. Quand \textit{C} est faible, la marge est plus large mais il peut y avoir plus d'erreurs de classification. Quand \textit{C} est plus élevé, la frontière est plus stricte autour des points d'entraînement, ce qui peut entraîner du surapprentissage.
-
-\section*{Question 4}
-\addcontentsline{toc}{section}{Question 4}
-
-Nous allons optimiser le paramètre \textit{C} avec SVM linéaire sur le jeu de données LFW.
-
-\begin{figure}[H]
-\centering
-\includesvg[width=0.7\textwidth]{extraits}
-\caption{Extrait du jeu de données Labeled Faces in the Wild (LFW)}
-\end{figure}
-
-\begin{minted}[bgcolor=lightgray, fontsize=\footnotesize]{python}
-Cs = 10. ** np.arange(-5, 6)
-scores = []
-for C in Cs:
-    clf = SVC(kernel='linear', C=C)
-    clf.fit(X_train, y_train)
-    scores.append(clf.score(X_train, y_train))
-
-# Meilleur C et graphique des scores
-best_C = Cs[np.argmax(scores)]
-plt.plot(Cs, scores)
-plt.xscale('log')
-plt.title(f"Optimisation du paramètre C")
-plt.show()
-
-print(f"Meilleur paramètre C : {best_C}")
-print(f"Meilleur score: {np.max(scores)}")
-\end{minted}
-
-Le modèle se comporte de manière optimale avec un \textit{C} autour de $10^{-3}$, où il atteint le meilleur score. Pour des valeurs de \textit{C} trop petites, le modèle sous-apprend, tandis que des valeurs très élevées n'apportent pas d'amélioration notable.
-
-\begin{figure}[H]
-\centering
-\includesvg[width=0.8\textwidth]{graph-c}
-\caption{Graphique des scores d'apprentissage en fonction de C}
-\end{figure}
-
-\section*{Question 5}
-\addcontentsline{toc}{section}{Question 5}
-
-Nous avons ajouté des variables de nuisances (250) aux données pour étudier l'impact du bruit.
-
-\begin{minted}[bgcolor=lightgray, fontsize=\footnotesize]{python}
-# Ajout de 250 variables de nuisance
-noise = sigma * np.random.randn(n_samples, 250)
-X_noisy = np.concatenate((X, noise), axis=1)
-X_noisy = X_noisy[np.random.permutation(X.shape[0])]
-
-# Validation croisée avec bruit
-run_svm_cv(X_noisy, y)
-\end{minted}
-
-Sans bruit, le modèle SVM obtenait une accuracy d'environ 95\%. Après ajout du bruit, l'accuracy est tombée à 52\%, ce qui montre l'importance d'éliminer les variables non pertinentes.
-
-\section*{Question 6}
-\addcontentsline{toc}{section}{Question 6}
-
-En réduisant la dimensionnalité des données avec l'Analyse en Composantes Principales (PCA), nous avons pu observer une amélioration du score. Le tableau suivant montre les résultats en fonction du nombre de composantes principales conservées :
-
-\begin{table}[H]
-\centering
-\begin{tabular}{|c|c|}
-\hline
-Nombre de composantes & Score  \\
-\hline
-3 & 0.5519 \\
-10 & 0.6388 \\
-20 & 0.6172 \\
-\hline
-\end{tabular}
-\caption{Résultats en fonction du nombre de composantes principales}
-\end{table}
-
-\begin{minted}[bgcolor=lightgray, fontsize=\footnotesize]{python}
-n_components = 20  # jouer avec ce parametre
-print(f'Score après réduction de dimension avec {n_components} composantes principales')
-pca = PCA(n_components=n_components).fit(X_noisy)
-X_pca = pca.transform(X_noisy)
-run_svm_cv(X_pca,y)
-\end{minted}
-
-Nous constatons une amélioration du score de classification en prenant en compte un certain nombre de composantes principales (comme 10 dans cet exemple). Toutefois, si trop de composantes sont conservées, le score commence à diminuer.
+L'algorithme YOLO propose une approche puissante pour la détection d'objets en temps réel. En reformulant la détection comme un problème de régression, YOLO permet de prédire simultanément plusieurs boîtes et classes dans une image, le tout en une seule passe à travers le réseau. La fonction de perte conçue optimise à la fois la localisation des objets, la confiance des prédictions, et la classification.
 
 \end{document}

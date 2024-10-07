@@ -10,14 +10,14 @@ import matplotlib.pyplot as plt
 model = YOLO("yolov8n.pt")
 
 # Charger l'image à partir d'une URL
-response = requests.get("https://images.unsplash.com/photo-1507537509458-b8312d35a233?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80")
+response = requests.get("https://img.freepik.com/vecteurs-premium/transport-pour-voyage-voiture-train-bus-croiseur-avion_104045-4125.jpg")
 image = Image.open(BytesIO(response.content))
 image = np.asarray(image)
 
 # Créer une copie mutable de l'image (résolution du problème de lecture seule)
 image = np.array(image, dtype=np.uint8).copy()
 
-# Prédire avec YOLO
+# Prédire avec YOLO 
 results = model.predict(image)
 
 # Fonction pour dessiner les boîtes et les labels

@@ -1,6 +1,6 @@
 from ultralytics import YOLO
 import numpy as np
-from PIL import Image
+from PIL import Image, ExifTags
 import requests
 from io import BytesIO
 import cv2
@@ -9,15 +9,36 @@ import matplotlib.pyplot as plt
 # Charger le modèle YOLO
 model = YOLO("yolov8n.pt")
 
-# Charger l'image à partir d'une URL
-response = requests.get("https://img.freepik.com/vecteurs-premium/transport-pour-voyage-voiture-train-bus-croiseur-avion_104045-4125.jpg")
+# Charger l'image à partir de l'URL brute de GitHub
+response = requests.get("https://raw.githubusercontent.com/TristanRivaldi/Rstu/master/IMG_7995.jpeg")
 image = Image.open(BytesIO(response.content))
+
+# Correction de l'orientation basée sur les métadonnées EXIF
+try:
+    for orientation in ExifTags.TAGS.keys():
+        if ExifTags.TAGS[orientation] == 'Orientation':
+            break
+    exif = image._getexif()
+
+    if exif is not None:
+        orientation = exif.get(orientation)
+        if orientation == 3:
+            image = image.rotate(180, expand=True)
+        elif orientation == 6:
+            image = image.rotate(270, expand=True)
+        elif orientation == 8:
+            image = image.rotate(90, expand=True)
+except (AttributeError, KeyError, IndexError):
+    # Cas où l'image n'a pas de données EXIF, pas de rotation nécessaire
+    pass
+
+# Convertir l'image en tableau NumPy
 image = np.asarray(image)
 
-# Créer une copie mutable de l'image (résolution du problème de lecture seule)
+# Créer une copie mutable de l'image
 image = np.array(image, dtype=np.uint8).copy()
 
-# Prédire avec YOLO 
+# Prédire avec YOLO
 results = model.predict(image)
 
 # Fonction pour dessiner les boîtes et les labels
@@ -39,37 +60,53 @@ def box_label(image, box, label='', color=(128, 128, 128), txt_color=(255, 255, 
                     thickness=tf,
                     lineType=cv2.LINE_AA)
 
-# Fonction pour dessiner toutes les boîtes sur l'image
-def plot_bboxes(image, boxes, labels=[], colors=[], score=True, conf=None):
+# Fonction pour dessiner toutes les boîtes sur l'image avec les probabilités
+def plot_bboxes_with_probs(image, boxes, labels=[], colors=[], score=True, conf=None):
     # Définir les labels COCO si non spécifiés
     if labels == []:
-        labels = {0: u'__background__', 1: u'person', 2: u'bicycle', 3: u'car', 4: u'motorcycle', 5: u'airplane', 6: u'bus', 7: u'train', 8: u'truck', 9: u'boat', 10: u'traffic light', 11: u'fire hydrant', 12: u'stop sign', 13: u'parking meter', 14: u'bench', 15: u'bird', 16: u'cat', 17: u'dog', 18: u'horse', 19: u'sheep', 20: u'cow', 21: u'elephant', 22: u'bear', 23: u'zebra', 24: u'giraffe', 25: u'backpack', 26: u'umbrella', 27: u'handbag', 28: u'tie', 29: u'suitcase', 30: u'frisbee', 31: u'skis', 32: u'snowboard', 33: u'sports ball', 34: u'kite', 35: u'baseball bat', 36: u'baseball glove', 37: u'skateboard', 38: u'surfboard', 39: u'tennis racket', 40: u'bottle', 41: u'wine glass', 42: u'cup', 43: u'fork', 44: u'knife', 45: u'spoon', 46: u'bowl', 47: u'banana', 48: u'apple', 49: u'sandwich', 50: u'orange', 51: u'broccoli', 52: u'carrot', 53: u'hot dog', 54: u'pizza', 55: u'donut', 56: u'cake', 57: u'chair', 58: u'couch', 59: u'potted plant', 60: u'bed', 61: u'dining table', 62: u'toilet', 63: u'tv', 64: u'laptop', 65: u'mouse', 66: u'remote', 67: u'keyboard', 68: u'cell phone', 69: u'microwave', 70: u'oven', 71: u'toaster', 72: u'sink', 73: u'refrigerator', 74: u'book', 75: u'clock', 76: u'vase', 77: u'scissors', 78: u'teddy bear', 79: u'hair drier', 80: u'toothbrush'}
+        labels = {0: u'__background__', 1: u'person', 2: u'bicycle', 3: u'car', 4: u'motorcycle', 5: u'airplane', 
+                  6: u'bus', 7: u'train', 8: u'truck', 9: u'boat', 10: u'traffic light', 11: u'fire hydrant', 
+                  12: u'stop sign', 13: u'parking meter', 14: u'bench', 15: u'bird', 16: u'cat', 17: u'dog', 
+                  18: u'horse', 19: u'sheep', 20: u'cow', 21: u'elephant', 22: u'bear', 23: u'zebra', 24: u'giraffe',
+                  25: u'backpack', 26: u'umbrella', 27: u'handbag', 28: u'tie', 29: u'suitcase', 30: u'frisbee', 
+                  31: u'skis', 32: u'snowboard', 33: u'sports ball', 34: u'kite', 35: u'baseball bat', 
+                  36: u'baseball glove', 37: u'skateboard', 38: u'surfboard', 39: u'tennis racket', 40: u'bottle', 
+                  41: u'wine glass', 42: u'cup', 43: u'fork', 44: u'knife', 45: u'spoon', 46: u'bowl', 
+                  47: u'banana', 48: u'apple', 49: u'sandwich', 50: u'orange', 51: u'broccoli', 52: u'carrot', 
+                  53: u'hot dog', 54: u'pizza', 55: u'donut', 56: u'cake', 57: u'chair', 58: u'couch', 
+                  59: u'potted plant', 60: u'bed', 61: u'dining table', 62: u'toilet', 63: u'tv', 64: u'laptop', 
+                  65: u'mouse', 66: u'remote', 67: u'keyboard', 68: u'cell phone', 69: u'microwave', 70: u'oven', 
+                  71: u'toaster', 72: u'sink', 73: u'refrigerator', 74: u'book', 75: u'clock', 76: u'vase', 
+                  77: u'scissors', 78: u'teddy bear', 79: u'hair drier', 80: u'toothbrush'}
     
     # Définir les couleurs si non spécifiés
     if colors == []:
         colors = [(89, 161, 197), (67, 161, 255), (19, 222, 24), (186, 55, 2), (167, 146, 11), (190, 76, 98), (130, 172, 179)]
   
-    # Dessiner chaque boîte sur l'image
+    # Dessiner chaque boîte sur l'image avec la probabilité
     for box in boxes:
         if score:
-            label = labels[int(box[-1])+1] + " " + str(round(100 * float(box[-2]), 1)) + "%"
+            label = labels[int(box[-1])+1] + " " + str(round(100 * float(box[-2]), 1)) + "%"  # Affiche la probabilité en pourcentage
         else:
             label = labels[int(box[-1])+1]
-        if conf:
-            if box[-2] > conf:
-                color = colors[int(box[-1]) % len(colors)]
-                box_label(image, box, label, color)
-        else:
-            color = colors[int(box[-1]) % len(colors)]
-            box_label(image, box, label, color)
+        
+        color = colors[int(box[-1]) % len(colors)]
+        box_label(image, box, label, color)
 
     # Convertir l'image BGR en RGB pour l'affichage avec matplotlib
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-# Appeler la fonction pour tracer les boîtes
-plot_bboxes(image, results[0].boxes.data, score=False)
+# Appeler la fonction pour tracer les boîtes avec probabilités
+plot_bboxes_with_probs(image, results[0].boxes.data, score=True)
 
-# Affichage de l'image avec matplotlib (utile pour les environnements sans interface graphique)
+# Affichage de l'image avec matplotlib
 plt.imshow(image)
 plt.axis('off')  # Masquer les axes
 plt.show()
+
+
+#Sauvegarder l'image avec les boîtes en tant que fichier JPEG
+#output_filename = "image_limite2.jpeg"
+#cv2.imwrite(output_filename, cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+
+#print(f"L'image a été sauvegardée sous le nom {output_filename}")

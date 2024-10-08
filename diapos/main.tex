@@ -1,0 +1,200 @@
+\documentclass{beamer}
+\usepackage{graphicx}  % Nécessaire pour inclure des images
+
+
+
+
+
+\title{You Only Look Once (YOLO)}
+\author{BEX Roméo, RIVALDI Tristan, LAMURE Maxence}
+\institute{Université de Montpellier \\
+Master 2 Statistiques et Sciences des Données}
+\date{2024 - 2025}
+
+\begin{document}
+
+% Page de titre
+\begin{frame}
+    \titlepage
+    %\vspace{1cm}  % Espace entre le titre et le logo
+    \begin{center}
+        \includegraphics[width=0.7\textwidth]{logo.png} % Spécifiez la taille de l'image (20% de la largeur de la page)
+    \end{center}
+\end{frame}
+
+
+% Table des matières
+\begin{frame}{Table des matières}
+    \tableofcontents
+\end{frame}
+
+% Introduction
+\section{Introduction}
+
+\begin{frame}{Introduction}
+    La \textbf{classification d'images} consiste à associer des étiquettes à une image en fonction de son contenu visuel. C'est un problème clé de la \textit{vision par ordinateur}, souvent résolu via l'apprentissage supervisé. Applications courantes :
+    \begin{itemize}
+        \item \textbf{Reconnaissance faciale}
+        \item \textbf{Voitures autonomes}
+    \end{itemize}
+\end{frame}
+
+
+
+% Slide avec image sans boîte
+\begin{frame}{Image sans Boîte}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.5\linewidth]{IMG_7995.jpeg}
+        \caption{Image d'entrée.}
+    \end{figure}
+\end{frame}
+
+% Slide avec image avec boîte
+\begin{frame}{Image avec Boîtes Englobantes}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.5\linewidth]{image_result.jpeg}
+        \caption{Image avec boîtes englobantes prédites par YOLOv8.}
+    \end{figure}
+\end{frame}
+
+% Méthodologie
+
+\section{Méthodologie}
+\begin{frame}{Formulation du problème}
+    \begin{itemize}
+        \item YOLO divise l'image en une grille $S \times S$.
+        \item Chaque cellule prédit des \textbf{boîtes englobantes} et des \textbf{probabilités de classes}.
+        \item YOLO utilise une \textbf{régression directe}, prédisant en une seule étape les coordonnées des objets et leurs classes, ce qui permet un traitement rapide.
+    \end{itemize}
+\end{frame}
+
+% Structure du réseau
+\begin{frame}{Structure du réseau YOLO}
+    \begin{itemize}
+        \item Basé sur un réseau de convolution profond (24 couches + 2 couches entièrement connectées).
+        \item Traitement de l'image entière en un seul passage.
+        \item Sortie : tenseur de taille S×S×(B×5+C).
+    \end{itemize}
+    
+    \begin{figure}
+        \centering
+        \includegraphics[width=1\linewidth]{architecture.png}
+        \caption{Architecture du réseau YOLO.}
+    \end{figure}
+\end{frame}
+
+% Fonction de perte - Partie 1
+\begin{frame}{Fonction de perte}
+    La fonction de perte de YOLO prend en compte les erreurs de localisation et de classification. 
+    Elle utilise deux hyperparamètres $\lambda_{\text{coord}}$ et $\lambda_{\text{noobj}}$ pour pondérer les différentes parties de la perte :
+    
+    \begin{equation}
+    \lambda_{\text{coord}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij} \left[(x_i - \hat{x}_i)^2 + (y_i - \hat{y}_i)^2\right]
+    \end{equation}
+
+    \begin{equation}
+    + \lambda_{\text{coord}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij} \left[\left(\sqrt{w_i} - \sqrt{\hat{w}_i}\right)^2 + \left(\sqrt{h_i} - \sqrt{\hat{h}_i}\right)^2 \right]
+    \end{equation}
+    
+    \begin{equation}
+    + \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij} \left(C_i - \hat{C}_i\right)^2 + \lambda_{\text{noobj}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{noobj}}_{ij} \left(C_i - \hat{C}_i\right)^2
+    \end{equation}
+    
+    Où :
+    \begin{itemize}
+        \item $1^{\text{obj}}_{ij}$ est un indicateur qui vaut 1 si l'objet est présent dans la cellule de la grille $i$ et 0 sinon.
+        \item $x_i, y_i$ sont les coordonnées du centre de la boîte prédite.
+    \end{itemize}
+\end{frame}
+
+% Fonction de perte - Partie 2
+\begin{frame}{Fonction de perte (suite)}
+    Suite des explications :
+    \begin{itemize}
+        \item $C_i$ est le score de confiance de la boîte.
+        \item $\lambda_{\text{coord}} = 5$ et $\lambda_{\text{noobj}} = 0.5$ sont les pondérations des différents termes de la perte.
+        \item Les termes en $\lambda_{\text{coord}}$ pondèrent l'erreur de localisation (coordonnées et dimensions des boîtes).
+        \item Les termes en $\lambda_{\text{noobj}}$ réduisent l'impact des fausses prédictions dans les cellules sans objet.
+    \end{itemize}
+\end{frame}
+
+% Comparaison des Méthodes
+\section{Comparaison des Méthodes}
+\begin{frame}{Comparaison avec d'autres méthodes}
+    \begin{itemize}
+        \item YOLO est comparé à Faster R-CNN et Fast R-CNN.
+        \item YOLO est plus rapide avec un bon équilibre entre vitesse et précision.
+    \end{itemize}
+    \begin{table}[]
+    \centering
+    \begin{tabular}{|c|c|c|}
+    \hline
+    Méthode       & mAP (\%) & FPS \\ \hline
+    Fast R-CNN    & 70.0     & 0.5 \\ \hline
+    Faster R-CNN  & 73.2     & 7   \\ \hline
+    YOLO          & 63.4     & 45  \\ \hline
+    Fast YOLO     & 52.7     & 155 \\ \hline
+    \end{tabular}
+    \caption{Comparaison des méthodes sur PASCAL VOC 2007}
+    \end{table}
+\end{frame}
+
+% Limites et Faiblesses
+
+\section{Limites et Faiblesses}
+\begin{frame}{Limites et Faiblesses}
+    \begin{itemize}
+        \item Problèmes de localisation pour les petits objets.
+        \item Sensibilité aux petites boîtes, impactant l'IoU (précision des boîtes).
+        \item Difficulté à généraliser à des objets aux proportions inhabituelles.
+    \end{itemize}
+
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{image_limite.jpeg}
+        \caption{Limites de YOLOv8 sur une scène complexe.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Limites et Faiblesses - Exemple Supplémentaire}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\linewidth]{image_limite2.jpeg}
+    \end{figure}
+\end{frame}
+
+
+
+\section{Conclusion}
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item YOLO simplifie les processus classiques de détection d'objets en intégrant toutes les étapes en une seule.
+        \item Avantages: Rapidité et facilité d'utilisation.
+        \item Limitations: Localisation imprécise des petits objets.
+        \item Applications futures: robotique, surveillance, réalité augmentée.
+    \end{itemize}
+\end{frame}
+
+\section{Conclusion}
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item YOLO simplifie la détection d'objets en intégrant toutes les étapes en une seule.
+        \item Avantages : rapidité, simplicité d'utilisation.
+        \item Limites : localisation des petits objets.
+        \item Applications : robotique, surveillance,...
+    \end{itemize}
+\end{frame}
+
+
+
+
+% Slide finale
+\begin{frame}{Questions ?}
+    \centering
+    Merci pour votre attention ! \\
+    Des questions ?
+\end{frame}
+
+\end{document}

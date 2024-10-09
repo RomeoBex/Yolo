@@ -42,7 +42,7 @@ Master 2 Statistiques et Sciences des Données}
 
 
 % Slide avec image sans boîte
-\begin{frame}{Image sans Boîte}
+\begin{frame}{Exemple d'image}
     \begin{figure}
         \centering
         \includegraphics[width=0.5\linewidth]{IMG_7995.jpeg}
@@ -64,20 +64,21 @@ Master 2 Statistiques et Sciences des Données}
 \section{Méthodologie}
 \begin{frame}{Formulation du problème}
     \begin{itemize}
-        \item YOLO divise l'image en une grille $S \times S$.
-        \item Chaque cellule prédit des \textbf{boîtes englobantes} et des \textbf{probabilités de classes}.
+        \item YOLO redimensionne puis divise l'image en une grille $S \times S$.\pause
+        \item Chaque cellule prédit des \textbf{boîtes englobantes} et des \textbf{probabilités de classes}.\pause
         \item YOLO utilise une \textbf{régression directe}, prédisant en une seule étape les coordonnées des objets et leurs classes, ce qui permet un traitement rapide.
     \end{itemize}
 \end{frame}
 
 % Structure du réseau
+\section{Structure du réseau}
 \begin{frame}{Structure du réseau YOLO}
     \begin{itemize}
-        \item Basé sur un réseau de convolution profond (24 couches + 2 couches entièrement connectées).
-        \item Traitement de l'image entière en un seul passage.
-        \item Sortie : tenseur de taille S×S×(B×5+C).
+        \item Basé sur un réseau de convolution profond (24 couches + 2 couches entièrement connectées).\pause
+        \item Sortie : tenseur de taille \(S \times S \times (B \times 5 + C)\). (\(C = 80\) avec notre modèle)\pause
+        \item \(B\) : nombre de boîtes englobantes que chaque cellule de la grille prédit.\pause
+        \item 5 : Chaque boîte englobante est décrite par 5 paramètres : \((x, y, w, h, \text{score de confiance})\).\pause
     \end{itemize}
-    
     \begin{figure}
         \centering
         \includegraphics[width=1\linewidth]{architecture.png}
@@ -85,70 +86,55 @@ Master 2 Statistiques et Sciences des Données}
     \end{figure}
 \end{frame}
 
-% Fonction de perte - Partie 1
+% Fonction de perte
+
 \begin{frame}{Fonction de perte}
     La fonction de perte de YOLO prend en compte les erreurs de localisation et de classification. 
-    Elle utilise deux hyperparamètres $\lambda_{\text{coord}}$ et $\lambda_{\text{noobj}}$ pour pondérer les différentes parties de la perte :
-    
-    \begin{equation}
-    \lambda_{\text{coord}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij} \left[(x_i - \hat{x}_i)^2 + (y_i - \hat{y}_i)^2\right]
-    \end{equation}
+    Elle utilise deux hyperparamètres \textcolor{red}{$\lambda_{\text{coord}}$} et \textcolor{blue}{$\lambda_{\text{noobj}}$} pour pondérer les différentes parties de la perte :\pause
 
     \begin{equation}
-    + \lambda_{\text{coord}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij} \left[\left(\sqrt{w_i} - \sqrt{\hat{w}_i}\right)^2 + \left(\sqrt{h_i} - \sqrt{\hat{h}_i}\right)^2 \right]
-    \end{equation}
-    
+    \textcolor{red}{\lambda_{\text{coord}}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij} 
+    \underbrace{\left[(x_i - \hat{x}_i)^2 + (y_i - \hat{y}_i)^2\right]}_{\text{Erreur de localisation}}
+    \end{equation}\pause
+
     \begin{equation}
-    + \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij} \left(C_i - \hat{C}_i\right)^2 + \lambda_{\text{noobj}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{noobj}}_{ij} \left(C_i - \hat{C}_i\right)^2
+    + \textcolor{red}{\lambda_{\text{coord}}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij}
+    \underbrace{\left[\left(\sqrt{w_i} - \sqrt{\hat{w}_i}\right)^2 + \left(\sqrt{h_i} - \sqrt{\hat{h}_i}\right)^2 \right]}_{\text{Erreur de taille (largeur/hauteur des boîtes)}}
+    \end{equation}\pause
+
+    \begin{equation}
+    + \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{obj}}_{ij}
+    \underbrace{\left(C_i - \hat{C}_i\right)^2}_{\text{Erreur avec objet}}
+    + \textcolor{blue}{\lambda_{\text{noobj}}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{noobj}}_{ij}
+    \underbrace{\left(C_i - \hat{C}_i\right)^2}_{\text{Erreur sans objet}}
+    \end{equation}\pause
+\end{frame}
+\begin{frame}{Suite}
+    \begin{equation}
+    + \sum_{i=0}^{S^2} 1^{\text{obj}}_i \sum_{c \in \text{classes}} 
+    \underbrace{\left(p_i(c) - \hat{p}_i(c)\right)^2}_{\text{Erreur de classification}}
     \end{equation}
-    
-    Où :
-    \begin{itemize}
-        \item $1^{\text{obj}}_{ij}$ est un indicateur qui vaut 1 si l'objet est présent dans la cellule de la grille $i$ et 0 sinon.
-        \item $x_i, y_i$ sont les coordonnées du centre de la boîte prédite.
-    \end{itemize}
 \end{frame}
 
-% Fonction de perte - Partie 2
-\begin{frame}{Fonction de perte (suite)}
-    Suite des explications :
-    \begin{itemize}
-        \item $C_i$ est le score de confiance de la boîte.
-        \item $\lambda_{\text{coord}} = 5$ et $\lambda_{\text{noobj}} = 0.5$ sont les pondérations des différents termes de la perte.
-        \item Les termes en $\lambda_{\text{coord}}$ pondèrent l'erreur de localisation (coordonnées et dimensions des boîtes).
-        \item Les termes en $\lambda_{\text{noobj}}$ réduisent l'impact des fausses prédictions dans les cellules sans objet.
-    \end{itemize}
-\end{frame}
 
 % Comparaison des Méthodes
 \section{Comparaison des Méthodes}
 \begin{frame}{Comparaison avec d'autres méthodes}
-    \begin{itemize}
-        \item YOLO est comparé à Faster R-CNN et Fast R-CNN.
-        \item YOLO est plus rapide avec un bon équilibre entre vitesse et précision.
-    \end{itemize}
-    \begin{table}[]
-    \centering
-    \begin{tabular}{|c|c|c|}
-    \hline
-    Méthode       & mAP (\%) & FPS \\ \hline
-    Fast R-CNN    & 70.0     & 0.5 \\ \hline
-    Faster R-CNN  & 73.2     & 7   \\ \hline
-    YOLO          & 63.4     & 45  \\ \hline
-    Fast YOLO     & 52.7     & 155 \\ \hline
-    \end{tabular}
-    \caption{Comparaison des méthodes sur PASCAL VOC 2007}
-    \end{table}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{graphe.png}
+        \caption{Courbes précision-rappel comparant YOLO avec d'autres méthodes.}
+    \end{figure}
 \end{frame}
+
 
 % Limites et Faiblesses
 
 \section{Limites et Faiblesses}
 \begin{frame}{Limites et Faiblesses}
     \begin{itemize}
-        \item Problèmes de localisation pour les petits objets.
-        \item Sensibilité aux petites boîtes, impactant l'IoU (précision des boîtes).
-        \item Difficulté à généraliser à des objets aux proportions inhabituelles.
+        \item Problèmes de localisation pour les petits objets.\pause
+        \item Sensibilité aux petites boîtes, impactant l'IoU (précision des boîtes).\pause
     \end{itemize}
 
     \begin{figure}
@@ -158,31 +144,29 @@ Master 2 Statistiques et Sciences des Données}
     \end{figure}
 \end{frame}
 
+
 \begin{frame}{Limites et Faiblesses - Exemple Supplémentaire}
+    \begin{itemize}
+        \item Difficulté à généraliser à des objets aux proportions inhabituelles.\pause
+    \end{itemize}
     \begin{figure}
         \centering
-        \includegraphics[width=0.9\linewidth]{image_limite2.jpeg}
+        \includegraphics[width=0.4\linewidth]{image_limite2.jpeg}\pause
+        \hspace{0.5cm}
+        \includegraphics[width=0.4\linewidth]{image_limite3.jpeg}
     \end{figure}
 \end{frame}
 
 
 
-\section{Conclusion}
-\begin{frame}{Conclusion}
-    \begin{itemize}
-        \item YOLO simplifie les processus classiques de détection d'objets en intégrant toutes les étapes en une seule.
-        \item Avantages: Rapidité et facilité d'utilisation.
-        \item Limitations: Localisation imprécise des petits objets.
-        \item Applications futures: robotique, surveillance, réalité augmentée.
-    \end{itemize}
-\end{frame}
+
 
 \section{Conclusion}
 \begin{frame}{Conclusion}
     \begin{itemize}
         \item YOLO simplifie la détection d'objets en intégrant toutes les étapes en une seule.
         \item Avantages : rapidité, simplicité d'utilisation.
-        \item Limites : localisation des petits objets.
+        \item Limites : localisation des petits objets, boîtes noires 
         \item Applications : robotique, surveillance,...
     \end{itemize}
 \end{frame}
@@ -194,7 +178,8 @@ Master 2 Statistiques et Sciences des Données}
 \begin{frame}{Questions ?}
     \centering
     Merci pour votre attention ! \\
-    Des questions ?
+    Avez-vous des questions ?
 \end{frame}
 
 \end{document}
+

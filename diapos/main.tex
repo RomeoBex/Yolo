@@ -60,15 +60,31 @@ Master 2 Statistiques et Sciences des Données}
 \end{frame}
 
 % Méthodologie
-
 \section{Méthodologie}
 \begin{frame}{Formulation du problème}
+
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\linewidth]{chien.png} 
+        \caption{Processus de détection d'objets avec YOLO.}
+    \end{figure}
+    
+    %\vspace{0.5cm}  % Ajouter un peu d'espace entre l'image et le texte
+
     \begin{itemize}
         \item YOLO redimensionne puis divise l'image en une grille $S \times S$.\pause
-        \item Chaque cellule prédit des \textbf{boîtes englobantes} et des \textbf{probabilités de classes}.\pause
-        \item YOLO utilise une \textbf{régression directe}, prédisant en une seule étape les coordonnées des objets et leurs classes, ce qui permet un traitement rapide.
+        \item Chaque cellule prédit des \textbf{boîtes englobantes} et des \textbf{probabilités de classes}.
     \end{itemize}
+    
 \end{frame}
+
+
+
+
+
+
+
+
 
 % Structure du réseau
 \section{Structure du réseau}
@@ -107,7 +123,7 @@ Master 2 Statistiques et Sciences des Données}
     \underbrace{\left(C_i - \hat{C}_i\right)^2}_{\text{Erreur avec objet}}
     + \textcolor{blue}{\lambda_{\text{noobj}}} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{\text{noobj}}_{ij}
     \underbrace{\left(C_i - \hat{C}_i\right)^2}_{\text{Erreur sans objet}}
-    \end{equation}\pause
+    \end{equation}
 \end{frame}
 \begin{frame}{Suite}
     \begin{equation}
